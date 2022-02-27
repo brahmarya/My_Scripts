@@ -1,0 +1,31 @@
+
+###	commands to run juicer.sh	###
+
+
+# Download a juicer from git-hub
+https://github.com/aidenlab/juicer.git
+	-unzip the file
+	-ln -s ~/juicer/CPU scripts
+	-cd scripts/common
+	-wget https://hicfiles.tc4ga.com/public/juicer/juicer_tools.1.9.9_jcuda.0.8.jar
+	-ln -s juicer_tools.1.9.9_jcuda.0.8.jar  juicer_tools.jar
+	-cd ../..
+	-mkdir fastq	# should have fastq files for both side
+	-mkdir references	# reference genome
+	-mkdir restriction_sites	# restriction sites for enzyme
+
+
+# create index file for reference genome
+cd references
+bwa index -a is H37Ra.fasta
+
+# generate restriction site file
+python  misc/generate_site_positions.py BglII H37Rv references/H37Rv.fasta > restriction_sites/H37Ra_BglII.txt		# edit restriction enzyme and pattern in script
+
+# create a genome size file
+cd restriction_sites
+awk 'BEGIN{OFS="\t"}{print $1, $NF}' H37Ra_BglII.txt > H37Ra.chrom.sizes
+
+#run juicer scripts
+sh scripts/juicer.sh -g H37Ra -z references/H37Ra.fasta -p H37Ra.chrom.sizes -y restriction_sites/H37Rv_BglII.txt -D ~/juicer-master -S "final"
+

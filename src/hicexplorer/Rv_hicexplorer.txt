@@ -1,0 +1,206 @@
+
+
+#Hicexplorer 
+
+
+mkdir fastq_data
+fastq files should be in this folder.
+
+#Create an index
+
+mkdir genome
+H37Ra and H37Rv reference genome is a single fasta file.
+
+mkdir bwa
+hisat2-build -p 14 genome/H37Ra.fa hisat2/H37Ra_index
+bowtie2-build genome/H37Ra.fa bowtie2/H37Ra_index --threads 14
+bwa index -p bwa/H37Ra_index genome/H37Ra.fa
+
+
+#Mapping the RAW files.
+mkdir bam
+
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra1_R1.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra1_R1.bam
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra1_R2.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra1_R2.bam
+
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra2_R1.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra2_R1.bam
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra2_R2.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra2_R2.bam
+
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra3_R1.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra3_R1.bam
+hisat2 -x hisat2/H37Ra_index --threads 14 -U fastq_data/Hi-C-Ra3_R2.fastq.gz --reorder | samtools view -Shb - > bam/Hi-C-Ra3_R2.bam
+
+bowtie2 -x bowtie2/mm10_index --threads 8 -U ../original_data/Hi-C-Ra1_R1.fastq.gz --reorder | samtools view -Shb - > Hi-C-Ra1_R1.bam
+
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra1_R1.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra1_R1.bam
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra1_R2.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra1_R2.bam
+
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra2_R1.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra2_R1.bam
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra2_R2.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra2_R2.bam
+
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra3_R1.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra3_R1.bam
+bwa mem -A 1 -B 4 -E 50 -L 0 -t 14 bwa/H37Ra_index fastq_data/Hi-C-Ra3_R2.fastq.gz | samtools view -Shb - > bam/Hi-C-Ra3_R2.bam
+
+
+#Create a restriction cut site file.
+
+hicFindRestSite --fasta genome/H37Ra.fa --searchPattern AGATCT -o rest_site_positions.bed
+
+
+#Create a Hi-C matrix using the aligned files
+
+mkdir hicMatrix 
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv1_R1.bam bam/Hi-C-Rv1_R2.bam --restrictionSequence AGATCT --danglingSequence GATC --restrictionCutFile rest_site_positions.bed --outBam bam/Hi-C-Rv1_ref.bam --outFileName hicMatrix/Hi-C-Rv1.h5 --QCfolder hicMatrix/Hi-C-Rv1_QC --threads 14 --inputBufferSize 400000
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv2_R1.bam bam/Hi-C-Rv2_R2.bam --restrictionSequence AGATCT --danglingSequence GATC --restrictionCutFile rest_site_positions.bed --outBam bam/Hi-C-Rv2_ref.bam --outFileName hicMatrix/Hi-C-Rv2.h5 --QCfolder hicMatrix/Hi-C-Rv2_QC --threads 14 --inputBufferSize 400000
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv3_R1.bam bam/Hi-C-Rv3_R2.bam --restrictionSequence AGATCT --danglingSequence GATC --restrictionCutFile rest_site_positions.bed --outBam bam/Hi-C-Rv3_ref.bam --outFileName hicMatrix/Hi-C-Rv3.h5 --QCfolder hicMatrix/Hi-C-Rv3_QC --threads 14 --inputBufferSize 400000
+
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv1_R1.bam bam/Hi-C-Rv1_R2.bam --outFileName hicMatrix/Hi-C-Rv1.mcool --binSize 5000 10000 15000 20000 25000 --QCfolder hicMatrix/Hi-C-Rv1_QC_cool --threads 14 --inputBufferSize 400000
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv2_R1.bam bam/Hi-C-Rv2_R2.bam --outFileName hicMatrix/Hi-C-Rv2.mcool --binSize 5000 10000 15000 20000 25000 --QCfolder hicMatrix/Hi-C-Rv2_QC_cool --threads 14 --inputBufferSize 400000
+
+hicBuildMatrix --samFiles bam/Hi-C-Rv3_R1.bam bam/Hi-C-Rv3_R2.bam --outFileName hicMatrix/Hi-C-Rv3.mcool --binSize 5000 10000 15000 20000 25000 --QCfolder hicMatrix/Hi-C-Rv3_QC_cool --threads 14 --inputBufferSize 400000
+
+
+
+#Merge (sum) matrices from replicates
+
+hicSumMatrices --matrices hicMatrix/Hi-C-Rv1.h5 hicMatrix/Hi-C-Rv2.h5 hicMatrix/Hi-C-Rv3.h5 --outFileName hicMatrix/replicateMerged.h5
+
+hicSumMatrices --matrices hicMatrix/Hi-C-Rv1.mcool hicMatrix/Hi-C-Rv2.mcool hicMatrix/Hi-C-Rv3.mcool --outFileName hicMatrix/replicateMerged.mcool
+
+
+#Merge matrix bins for plotting
+
+#hicMergeMatrixBins --matrix hicMatrix/replicateMerged.h5 --numBins 2 --outFileName hicMatrix/replicateMerged.h5
+
+
+#Plot the Hi-C Matrix
+
+mkdir plots
+hicPlotMatrix --matrix hicMatrix/replicateMerged.h5 --log1p --dpi 300 --clearMaskedBins --region NC_000962.3 --colorMap jet --title "Hi-C matrix for H37Rv" --outFileName plots/Rv_matrix_h5.png
+
+hicPlotMatrix --matrix hicMatrix/replicateMerged.mcool --log1p --dpi 300 --clearMaskedBins --region NC_000962.3 --colorMap jet --title "Hi-C matrix for H37Rv" --outFileName plots/Rv_matrix_mcool.png
+
+
+# Normalize the matrix
+
+hicNormalize -m hicMatrix/replicateMerged.h5 --normalize norm_range -o hicMatrix/replicateMergedNormalized.h5
+
+hicNormalize -m hicMatrix/replicateMerged.mcool --normalize norm_range -o hicMatrix/replicateMergedNormalized.mcool
+
+
+#Plot normalized matrix
+
+hicPlotMatrix --matrix hicMatrix/replicateMergedNormalized.h5 --log1p --dpi 300 --clearMaskedBins --region NC_000962.3 --colorMap jet --title "Hi-C matrix for H37Rv" --outFileName plots/Rv_matrix_Norm_h5.png
+
+hicPlotMatrix --matrix hicMatrix/replicateMergedNormalized.mcool --log1p --dpi 300 --clearMaskedBins --region NC_000962.3 --colorMap jet --title "Hi-C matrix for H37Rv" --outFileName plots/Rv_matrix_Norm_mcool.png
+
+
+#Correct Hi-C Matrix
+
+hicCorrectMatrix diagnostic_plot --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.h5 --plotName hicMatrix/diagnostic_plot_h5.png
+
+hicCorrectMatrix correct --correctionMethod "KR" --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.h5 --outFileName hicMatrix/replicateMergedCorrected_KR.h5
+hicCorrectMatrix correct --correctionMethod "ICE" --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.h5 --filterThreshold -1.5 2 --outFileName hicMatrix/replicateMergedCorrected_ICE.h5
+
+
+hicCorrectMatrix diagnostic_plot --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.mcool --plotName hicMatrix/diagnostic_plot_mcool.png
+
+hicCorrectMatrix correct --correctionMethod "KR" --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.mcool --outFileName hicMatrix/replicateMergedCorrected_KR.mcool
+hicCorrectMatrix correct --correctionMethod "ICE" --chromosomes NC_000962.3 --matrix hicMatrix/replicateMergedNormalized.mcool --filterThreshold 0 2.25 --outFileName hicMatrix/replicateMergedCorrected_ICE.mcool
+
+
+#Plot corrected matrix
+
+hicPlotMatrix --log1p --dpi 300 --matrix hicMatrix/replicateMergedCorrected_KR.h5 --region NC_000962.3 --title "Corrected Hi-C matrix for H37Rv" --outFileName plots/replicateMerged_Corrected_KR_h5.png
+hicPlotMatrix --log1p --dpi 300 --matrix hicMatrix/replicateMergedCorrected_ICE.h5 --region NC_000962.3 --title "Corrected Hi-C matrix for H37Rv" --outFileName plots/replicateMerged_Corrected_ICE_h5.png
+
+hicPlotMatrix --log1p --dpi 300 --matrix hicMatrix/replicateMergedCorrected_KR.mcool --region NC_000962.3 --title "Corrected Hi-C matrix for H37Rv" --outFileName plots/replicateMerged_Corrected_KR_mcool.png
+hicPlotMatrix --log1p --dpi 300 --matrix hicMatrix/replicateMergedCorrected_ICE.mcool --region NC_000962.3 --title "Corrected Hi-C matrix for H37Rv" --outFileName plots/replicateMerged_Corrected_ICE_mcool.png
+
+
+#Find TADs
+
+mkdir TADs
+
+hicFindTADs --matrix hicMatrix/replicateMergedCorrected_KR.h5 --minDepth 60000 --maxDepth 120000 --numberOfProcessors 14 --step 20000 --outPrefix TADs/Rv_tad_KR  --minBoundaryDistance 80000 --correctForMultipleTesting fdr --threshold 0.05
+
+hicFindTADs --matrix hicMatrix/replicateMergedCorrected_ICE.h5 --minDepth 60000 --maxDepth 120000 --numberOfProcessors 14 --step 20000 --outPrefix TADs/Rv_tad_ICE  --minBoundaryDistance 80000 --correctForMultipleTesting fdr --threshold 0.05
+
+
+
+
+
+#hicFindTADs --matrix hicMatrix/replicateMergedCorrected.mcool --minDepth 60000 --maxDepth 120000 --numberOfProcessors 14 --step 20000 --outPrefix TADs/Rv_tad_mcool  --minBoundaryDistance 80000 --correctForMultipleTesting fdr --threshold 0.05
+
+
+#Build Track file
+
+[hic]
+file = hicMatrix/replicateMergedCorrected_ICE.h5
+title = Rv TAD plot
+colormap = RdYlBu_r
+depth = 2000000
+height = 7
+transform = log1p
+file_type = hic_matrix
+
+[tads]
+file = TADs/Rv_tad_h5_domains.bed
+file_type = domains
+border_color = black
+color = none
+line_width = 1.5
+overlay_previous = share-y
+show_data_range = no
+
+[x-axis]
+fontsize = 16
+where = top
+
+[tad score]
+file = TADs/Rv_tad_h5_tad_score.bm
+title = TAD separation score
+height = 4
+file_type = bedgraph_matrix
+
+[spacer]
+
+[gene track]
+file = mm10_genes_sorted.bed
+height = 10
+title = mm10 genes
+labels = false
+
+
+
+
+#Plot TADs
+
+hicPlotTADs --tracks track_KR.ini --region NC_000962.3:1-4411532 --dpi 300 --outFileName plots/Rv_TADs_KR.png --title "H37Rv TADs plot"
+
+hicPlotTADs --tracks track_ICE.ini --region NC_000962.3:1-4411532 --dpi 300 --outFileName plots/Rv_TADs_ICE.png --title "H37Rv TADs plot"
+
+
+# Loop detection
+
+hicDetectLoops -m matrix.cool -o loops.bedgraph --maxLoopDistance 2000000 --windowSize 5 --peakWidth 3 --pValuePreselection 0.05 --pValue 0.05 --peakInteractionsThreshold 100
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
